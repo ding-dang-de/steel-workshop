@@ -1,0 +1,30 @@
+{
+  "name": "steel-workshop",
+  "productName": "钢铁工坊",
+  "version": "0.1.0",
+  "description": "钢铁工坊 — 钢铁雄心4模组编辑器",
+  "main": "./out/main/index.js",
+  "private": true,
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "dist": "electron-vite build && electron-builder --win",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "node --test src/shared/clausewitz.test.ts src/shared/focusTree.test.ts src/shared/conditions.test.ts src/shared/dds.test.ts src/shared/localisation.test.ts src/shared/events.test.ts src/shared/decisions.test.ts src/shared/ideas.test.ts src/shared/characters.test.ts src/shared/traits.test.ts src/shared/gfx.test.ts src/shared/checks.test.ts src/shared/modifiers.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^7.3.7"
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  }
+}

@@ -1,0 +1,11 @@
+# 依赖与构建产物
+node_modules/
+app/node_modules/
+app/out/
+app/release/
+dist/
+
+# 日志与临时文件
+*.log
+.DS_Store
+Thumbs.db
