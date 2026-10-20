@@ -2,11 +2,13 @@ import { app } from 'electron'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import type { Settings } from '../shared/types'
+import { clampPaneSplit, PANE_SPLIT_DEFAULT } from '../shared/pane'
 
 const DEFAULTS: Settings = {
   gameDir: null,
   modsDir: null,
-  recentMods: []
+  recentMods: [],
+  paneSplit: PANE_SPLIT_DEFAULT
 }
 
 function settingsPath(): string {
@@ -20,7 +22,8 @@ export function loadSettings(): Settings {
     return {
       gameDir: typeof raw.gameDir === 'string' ? raw.gameDir : null,
       modsDir: typeof raw.modsDir === 'string' ? raw.modsDir : null,
-      recentMods: Array.isArray(raw.recentMods) ? raw.recentMods.filter((x: unknown) => typeof x === 'string') : []
+      recentMods: Array.isArray(raw.recentMods) ? raw.recentMods.filter((x: unknown) => typeof x === 'string') : [],
+      paneSplit: clampPaneSplit(typeof raw.paneSplit === 'number' ? raw.paneSplit : Number.NaN)
     }
   } catch {
     return { ...DEFAULTS }

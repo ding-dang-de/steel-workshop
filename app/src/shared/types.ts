@@ -7,6 +7,8 @@ export interface Settings {
   modsDir: string | null
   /** 最近打开的模组目录列表（最新的在前） */
   recentMods: string[]
+  /** 双栏分屏左栏占宽度比例（0.2–0.8，默认 0.5） */
+  paneSplit: number
 }
 
 export interface Hoi4Info {

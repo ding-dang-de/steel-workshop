@@ -18,6 +18,7 @@ import TraitsEditor from './TraitsEditor'
 import GfxViewer from './GfxViewer'
 import CheckPanel from './CheckPanel'
 import type { CheckIssue } from '../../../shared/checks'
+import { clampPaneSplit, PANE_SPLIT_DEFAULT } from '../../../shared/pane'
 
 /** 可用 Clausewitz 解析器读取的扩展名（txt/yml/mod/gfx 都是同一种脚本格式） */
 const PARSED_EXT = new Set(['txt', 'yml', 'mod', 'gfx'])
@@ -266,10 +267,13 @@ export interface ModViewHandle {
 interface Props {
   mod: OpenModInfo
   gameDir: string | null
+  /** 双栏分屏左栏比例（来自设置；拖动结束后经 onPaneSplitChange 回写） */
+  paneSplit: number
+  onPaneSplitChange?: (v: number) => void
   ref?: React.Ref<ModViewHandle>
 }
 
-export default function ModView({ mod, gameDir, ref }: Props): React.JSX.Element {
+export default function ModView({ mod, gameDir, paneSplit, onPaneSplitChange, ref }: Props): React.JSX.Element {
   /** 本地模组信息副本：新建事件文件后重新扫描并替换，文件树随之刷新 */
   const [modInfo, setModInfo] = useState<OpenModInfo>(mod)
   const modInfoRef = useRef<OpenModInfo>(mod)
@@ -284,6 +288,12 @@ export default function ModView({ mod, gameDir, ref }: Props): React.JSX.Element
   const [panes, setPanes] = useState<[PaneState, PaneState]>([emptyPane(), emptyPane()])
   const [activePane, setActivePane] = useState<0 | 1>(0)
   const activePaneRef = useRef<0 | 1>(0)
+  /** 双栏分屏左栏比例（拖动分隔条调整；初始值来自设置） */
+  const [split, setSplit] = useState(() => clampPaneSplit(paneSplit))
+  const [splitDragging, setSplitDragging] = useState(false)
+  /** 拖动中状态：起点坐标 + 起点比例（分隔条按下时记录，指针抬起清空） */
+  const splitDragRef = useRef<{ startX: number; startSplit: number } | null>(null)
+  const splitWrapRef = useRef<HTMLDivElement | null>(null)
   /** 每栏未保存状态（保持 ref：dirty 变化不触发重渲染，编辑器内部自管显示） */
   const dirtyRefs = useRef<[boolean, boolean]>([false, false])
   /** panes 实时镜像（异步读盘返回后校验该栏未被切换/关闭） */
@@ -306,6 +316,52 @@ export default function ModView({ mod, gameDir, ref }: Props): React.JSX.Element
     if (activePaneRef.current === i) return
     activePaneRef.current = i
     setActivePane(i)
+  }
+
+  /** 提交左栏比例：更新界面 + 写进设置持久化（拖动结束/键盘/双击才调用，避免拖动过程高频写盘） */
+  const commitSplit = (v: number): void => {
+    const next = clampPaneSplit(v)
+    setSplit(next)
+    void window.api.setSettings({ paneSplit: next })
+    onPaneSplitChange?.(next)
+  }
+
+  /** 分隔条按下：记录起点并挂 window 级监听（不用 setPointerCapture——合成事件没有活动指针会抛异常） */
+  const onDividerPointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
+    if (e.button !== 0) return
+    splitDragRef.current = { startX: e.clientX, startSplit: split }
+    setSplitDragging(true)
+    const move = (ev: PointerEvent): void => {
+      const d = splitDragRef.current
+      const wrap = splitWrapRef.current
+      if (!d || !wrap || wrap.clientWidth <= 0) return
+      setSplit(clampPaneSplit(d.startSplit + (ev.clientX - d.startX) / wrap.clientWidth))
+    }
+    const up = (ev: PointerEvent): void => {
+      const d = splitDragRef.current
+      if (!d) return
+      splitDragRef.current = null
+      setSplitDragging(false)
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
+      const wrap = splitWrapRef.current
+      commitSplit(wrap && wrap.clientWidth > 0 ? clampPaneSplit(d.startSplit + (ev.clientX - d.startX) / wrap.clientWidth) : d.startSplit)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
+  }
+
+  /** 键盘微调（左右键 ±5%）；双击恢复对半走 onDoubleClick */
+  const onDividerKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault()
+      commitSplit(split - 0.05)
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault()
+      commitSplit(split + 0.05)
+    }
   }
 
   /** 编辑器类型的显示名（切文本模式的确认文案用） */
@@ -1442,12 +1498,31 @@ export default function ModView({ mod, gameDir, ref }: Props): React.JSX.Element
         </div>
       </div>
 
-      <div className="viewer-split">
-        {([0, 1] as const).map((i) => (
-          <div key={i} className={`viewer pane${i === activePane ? ' pane-active' : ''}`} onMouseDown={() => activate(i)}>
-            {renderPane(i)}
-          </div>
-        ))}
+      <div className="viewer-split" ref={splitWrapRef}>
+        <div
+          className={`viewer pane${activePane === 0 ? ' pane-active' : ''}`}
+          style={{ flex: `0 0 ${split * 100}%` }}
+          onMouseDown={() => activate(0)}
+        >
+          {renderPane(0)}
+        </div>
+        <div
+          className={`pane-divider${splitDragging ? ' dragging' : ''}`}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="调整左右栏宽度"
+          title="拖动调整左右栏宽度，双击恢复对半"
+          tabIndex={0}
+          onPointerDown={onDividerPointerDown}
+          onDoubleClick={() => commitSplit(PANE_SPLIT_DEFAULT)}
+          onKeyDown={onDividerKeyDown}
+        />
+        <div
+          className={`viewer pane${activePane === 1 ? ' pane-active' : ''}`}
+          onMouseDown={() => activate(1)}
+        >
+          {renderPane(1)}
+        </div>
       </div>
 
       {showChecks && (

@@ -1,7 +1,7 @@
 {
   "name": "steel-workshop",
   "productName": "钢铁工坊",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "钢铁工坊 — 钢铁雄心4模组编辑器",
   "main": "./out/main/index.js",
   "private": true,
@@ -10,7 +10,7 @@
     "build": "electron-vite build",
     "dist": "electron-vite build && electron-builder --win",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "test": "node --test src/shared/clausewitz.test.ts src/shared/focusTree.test.ts src/shared/conditions.test.ts src/shared/dds.test.ts src/shared/localisation.test.ts src/shared/events.test.ts src/shared/decisions.test.ts src/shared/ideas.test.ts src/shared/characters.test.ts src/shared/traits.test.ts src/shared/gfx.test.ts src/shared/checks.test.ts src/shared/modifiers.test.ts"
+    "test": "node --test src/shared/clausewitz.test.ts src/shared/focusTree.test.ts src/shared/conditions.test.ts src/shared/dds.test.ts src/shared/localisation.test.ts src/shared/events.test.ts src/shared/decisions.test.ts src/shared/ideas.test.ts src/shared/characters.test.ts src/shared/traits.test.ts src/shared/gfx.test.ts src/shared/checks.test.ts src/shared/modifiers.test.ts src/shared/pane.test.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",

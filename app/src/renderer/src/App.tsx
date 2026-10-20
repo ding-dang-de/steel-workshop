@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Settings, Hoi4Info, OpenModInfo } from '../../shared/types'
+import { PANE_SPLIT_DEFAULT } from '../../shared/pane'
 import ProjectView from './components/ProjectView'
 import ModView, { type ModViewHandle } from './components/ModView'
 
@@ -82,7 +83,13 @@ export default function App(): React.JSX.Element {
 
       <div className="body">
         {mod ? (
-          <ModView ref={modViewRef} mod={mod} gameDir={settings?.gameDir ?? null} />
+          <ModView
+            ref={modViewRef}
+            mod={mod}
+            gameDir={settings?.gameDir ?? null}
+            paneSplit={settings?.paneSplit ?? PANE_SPLIT_DEFAULT}
+            onPaneSplitChange={(v) => setSettingsState((s) => (s ? { ...s, paneSplit: v } : s))}
+          />
         ) : (
           <ProjectView
             settings={settings}
@@ -96,7 +103,7 @@ export default function App(): React.JSX.Element {
       </div>
 
       <footer className="statusbar">
-        <span>钢铁工坊 v0.1.0</span>
+        <span>钢铁工坊 v0.2.0</span>
         {hoi4?.version && <span>游戏版本 {hoi4.version}</span>}
         {mod && <span>当前模组：{mod.name}</span>}
         {hint && <span className="hint">{hint}</span>}

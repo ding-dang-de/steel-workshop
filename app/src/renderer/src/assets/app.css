@@ -447,8 +447,23 @@ body {
   position: relative;
 }
 
-.viewer.pane + .viewer.pane {
-  border-left: 1px solid var(--border);
+/* 双栏分隔条：按住左右拖动改变左栏宽度（比例写进设置持久化），双击恢复对半 */
+.pane-divider {
+  flex: 0 0 6px;
+  cursor: col-resize;
+  background: var(--border);
+  padding: 0;
+  border: none;
+  outline-offset: -2px;
+  transition: background 0.12s ease;
+  user-select: none;
+  touch-action: none;
+}
+
+.pane-divider:hover,
+.pane-divider.dragging,
+.pane-divider:focus-visible {
+  background: var(--accent);
 }
 
 .pane-active::before {
