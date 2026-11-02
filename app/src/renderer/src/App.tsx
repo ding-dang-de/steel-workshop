@@ -103,7 +103,7 @@ export default function App(): React.JSX.Element {
       </div>
 
       <footer className="statusbar">
-        <span>钢铁工坊 v0.2.0</span>
+        <span>钢铁工坊 v0.2.1</span>
         {hoi4?.version && <span>游戏版本 {hoi4.version}</span>}
         {mod && <span>当前模组：{mod.name}</span>}
         {hint && <span className="hint">{hint}</span>}

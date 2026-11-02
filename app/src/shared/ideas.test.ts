@@ -21,7 +21,8 @@ import {
   extractIdeaIds,
   createIdeasFile
 } from './ideas.ts'
-import { parseFile, serialize } from './clausewitz.ts'
+import { parseFile, serialize, findEntry } from './clausewitz.ts'
+import type { CwItem } from './clausewitz.ts'
 
 /** 用户模组 paris_commune 的真实民族精神文件（common/ideas/fra.txt，4 空格缩进） */
 const REAL = `ideas = {
@@ -111,6 +112,83 @@ test('增删修饰符行：新增行换行符沿用文件自身', () => {
   out = saveIdeas(model)
   assert.ok(out.includes('communism_drift = 0.3'))
   assert.ok(!out.includes('communism_drift = 0.2'))
+})
+
+test('新精神没有 modifier 块时添加修饰符：自动建块，保存重载后行还在', () => {
+  const model = loadIdeas(REAL)
+  assert.ok(model)
+  addIdea(model, 'country', 'FRA_new_spirit')
+  const d = buildIdeas(model.file).ideas.find((x) => x.id === 'FRA_new_spirit')
+  assert.ok(d)
+  assert.equal(d.hasModifier, false)
+  // 点选目录条目时先空值入行，再填数值（UI 的真实两步路径）
+  setModifierRow(d.entry, 'stability_factor', '')
+  setModifierRow(d.entry, 'stability_factor', '0.1')
+  let rows = getModifierRows(d.entry)
+  assert.deepEqual(rows.map((r) => [r.kind, r.text]), [['scalar', '0.1']])
+  const out = saveIdeas(model)
+  assert.ok(out.includes('stability_factor = 0.1'))
+  // 保存后重新载入：行必须还在（曾因 setModifierRow 找不到块静默丢弃而消失）
+  const reloaded = loadIdeas(out)
+  assert.ok(reloaded)
+  const d2 = buildIdeas(reloaded.file).ideas.find((x) => x.id === 'FRA_new_spirit')
+  assert.ok(d2)
+  rows = getModifierRows(d2.entry)
+  assert.deepEqual(rows.map((r) => [r.kind, r.text]), [['scalar', '0.1']])
+  // 再保存 md5 稳定
+  assert.equal(saveIdeas(reloaded), out)
+})
+
+test('新精神无 modifier 块：CRLF 文件里自动建的块沿用文件换行符', () => {
+  const src = 'ideas = {\r\n    country = {\r\n        OLD = {\r\n            picture = x\r\n        }\r\n    }\r\n}'
+  const model = loadIdeas(src)
+  assert.ok(model)
+  addIdea(model, 'country', 'FI_c')
+  const d = buildIdeas(model.file).ideas.find((x) => x.id === 'FI_c')
+  assert.ok(d)
+  setModifierRow(d.entry, 'stability_factor', '0.1')
+  const out = saveIdeas(model)
+  // 新块各行独立成行且无裸 \n 混入（\r\n 文件里混入 \n 会让部分编辑器显示连行）
+  const newLines = out.split('\r\n').filter((l) => l.includes('stability_factor') || l.includes('modifier'))
+  assert.equal(newLines.length, 2)
+  assert.ok(!out.replace(/\r\n/g, '').includes('\n'))
+  // 重载往返稳定
+  assert.equal(saveIdeas(loadIdeas(out)!), out)
+})
+
+test('被删过 modifier 块的精神重新添加修饰符：块原地恢复且行序不变', () => {
+  const model = loadIdeas(REAL)
+  assert.ok(model)
+  const d = model.ideas[1] // FRA_syndicalist_march：picture 在前、modifier 块在后
+  const items = d.entry.value && d.entry.value.kind === 'block' ? d.entry.value.items : []
+  const mod = findEntry(items, 'modifier')
+  assert.ok(mod)
+  mod.deleted = true
+  assert.deepEqual(getModifierRows(d.entry), [])
+  setModifierRow(d.entry, 'stability_factor', '-0.2')
+  // 原地恢复：块内原有行（communism_drift）一起回来，stability_factor 更新为新值
+  assert.deepEqual(getModifierRows(d.entry).map((r) => [r.key, r.text]), [
+    ['communism_drift', '0.2'],
+    ['stability_factor', '-0.2']
+  ])
+  const out = saveIdeas(model)
+  // 原地恢复：modifier 块仍在 picture 之后（行序不变），且块内保留原有行
+  const sec = out.slice(out.indexOf('FRA_syndicalist_march'))
+  assert.ok(sec.indexOf('picture = generic_communism') < sec.indexOf('modifier = {'))
+  assert.ok(sec.includes('stability_factor = -0.2    # 稳定度 -10%'))
+  assert.ok(sec.includes('communism_drift = 0.2'))
+})
+
+test('删空 modifier 块后重新添加行：空块也能加行', () => {
+  const model = loadIdeas(REAL)
+  assert.ok(model)
+  const d = model.ideas[1]
+  for (const r of getModifierRows(d.entry)) setModifierRow(d.entry, r.key, null)
+  assert.deepEqual(getModifierRows(d.entry), [])
+  setModifierRow(d.entry, 'stability_factor', '-0.2')
+  assert.deepEqual(getModifierRows(d.entry).map((r) => [r.key, r.text]), [['stability_factor', '-0.2']])
+  const out = saveIdeas(model)
+  assert.ok(out.includes('stability_factor = -0.2'))
 })
 
 test('改修饰符行的键名：行尾注释与位置保留', () => {

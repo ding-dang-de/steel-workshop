@@ -170,11 +170,35 @@ export function getModifierRows(ideaEntry: CwItem): ModifierRow[] {
 /**
  * 增/改/删精神 modifier 块里的一行标量；value 为 null 时删除整行（含行尾注释）。
  * 改值时行尾注释原地保留；新行用文件自身的换行符。
+ * 精神还没有 modifier 块时（新建的精神就是这种状态）自动建块，
+ * 被删过的块原地恢复（保持行序不变）。
  */
 export function setModifierRow(ideaEntry: CwItem, key: string, value: string | null): void {
   if (!ideaEntry.value || ideaEntry.value.kind !== 'block') return
-  const mod = findEntry(ideaEntry.value.items, 'modifier')
-  if (!mod || mod.value?.kind !== 'block') return
+  let mod = findEntry(ideaEntry.value.items, 'modifier')
+  if (value === null) {
+    if (!mod || mod.value?.kind !== 'block') return
+    setOrDeleteScalar(mod, key, null)
+    return
+  }
+  if (!mod) {
+    const dead = findDeletedEntry(ideaEntry.value.items, 'modifier')
+    if (dead && dead.value?.kind === 'block') {
+      dead.deleted = false
+      dead.dirty = true
+      mod = dead
+    } else {
+      mod = makeBlockEntry('modifier', [])
+      // 换行符沿用文件自身：新建的精神块内没有兄弟行，从条目自己的 leading 取
+      // （addIdea 新建条目时已按文件换行符设置），取不到再退回兄弟行推断
+      const ownNl = ideaEntry.leading.find((x) => x.kind === 'newline')
+      const nl = ownNl ? ownNl.text : newlineOfBlock(ideaEntry)
+      mod.leading = [{ kind: 'newline', text: nl, start: 0, end: nl.length }]
+      ideaEntry.value.items.push(mod)
+      ideaEntry.dirty = true
+    }
+  }
+  if (mod.value?.kind !== 'block') return
   setOrDeleteScalar(mod, key, value)
 }
 
